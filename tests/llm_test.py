@@ -1,8 +1,8 @@
-# Import the OpenAI library
-import openai
+from openai import OpenAI
+import os
 
-# Initialize the client with your API key
-client = openai
+# Initialize the OpenAI client with the API key
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def summarise_test(testimonials):
@@ -27,7 +27,7 @@ def summarise_test(testimonials):
     )
 
     # Extract and return the output
-    return completion.choices[0].message.content  # Access content directly
+    return completion.choices[0].message["content"]
 
 
 # Example usage
