@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import mysql.connector
-from mysql.connector import Error
+import pymysql
+import pymysql.cursors
 
 app = Flask(__name__)
 CORS(app)
@@ -13,14 +13,14 @@ app.config.from_pyfile("config.py")
 # Database connection function
 def get_db_connection():
     try:
-        conn = mysql.connector.connect(
+        conn = pymysql.connect(
             host=app.config["MYSQL_HOST"],
             user=app.config["MYSQL_USER"],
             password=app.config["MYSQL_PASSWORD"],
             database=app.config["MYSQL_DB"],
         )
         return conn
-    except Error as e:
+    except pymysql.Error as e:
         print(f"Error connecting to MySQL: {e}")
         return None
 
@@ -30,11 +30,48 @@ def test_endpoint():
     return jsonify({"message": "Hello from Flask!"})
 
 
+# ============== Main Endpoints ============
+
+
+@app.route("/dashboard", methods=["GET"])
+def get_dashboard():
+    age: str = request.args.get("age")
+    weight: str = request.args.get("weight")
+    ethnicity: str = request.args.get("ethnicity")
+    return jsonify(
+        {
+            "patient_info": {
+                "age": age,
+                "weight": weight,
+                "ethnicity": ethnicity,
+            },
+            "probabilities": {
+                "most_common": {
+                    "age": {
+                        "vomiting": 0.5,
+                        "heart_attack": 0.5,
+                    },
+                    "weight": {
+                        "vomiting": 0.5,
+                        "heart_attack": 0.5,
+                    },
+                    "ethnicity": {
+                        "vomiting": 0.5,
+                        "heart_attack": 0.5,
+                    },
+                }
+            },
+            "testimonies": "my test",
+            "actionable_insights": ["a", "b", "c"],
+        }
+    )
+
+
 # =============== CRUD ITEMS ===============
 @app.route("/api/items", methods=["GET"])
 def get_items():
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute("SELECT * FROM items")
     items = cursor.fetchall()
     cursor.close()
@@ -68,7 +105,7 @@ def add_item():
 def update_item(item_id):
     updated_name = request.json.get("name")
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     # Check if item exists
     cursor.execute("SELECT * FROM items WHERE id = %s", (item_id,))
     item = cursor.fetchone()
