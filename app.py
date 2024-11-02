@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pymysql
 import pymysql.cursors
+import llm
 
 app = Flask(__name__)
 CORS(app)
@@ -38,6 +39,7 @@ def get_dashboard():
     age: str = request.args.get("age")
     weight: str = request.args.get("weight")
     ethnicity: str = request.args.get("ethnicity")
+    testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
         {
             "patient_info": {
@@ -61,7 +63,7 @@ def get_dashboard():
                     },
                 }
             },
-            "testimonies": "my test",
+            "testimony": testimony,
             "actionable_insights": ["a", "b", "c"],
         }
     )

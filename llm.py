@@ -1,21 +1,13 @@
-# Import the OpenAI library
 import openai
 
-# Initialize the client with your API key
-client = openai
 
-
-def summarise_test(testimonials):
-    # Join the testimonials into a single string separated by commas
+def summarise_testimonials(testimonials: list[str]) -> str:
     input_summaries = ", ".join(testimonials)
-
     # Create the prompt template
     prompt = (
         f"Summarize the following testimonials in bullet points:\n\n{input_summaries}"
     )
-
-    # Use the client to create a completion
-    completion = client.chat.completions.create(
+    completion = openai.chat.completions.create(
         model="gpt-4",
         messages=[
             {
@@ -25,13 +17,11 @@ def summarise_test(testimonials):
             {"role": "user", "content": prompt},
         ],
     )
-
-    # Extract and return the output
-    return completion.choices[0].message.content  # Access content directly
+    return completion.choices[0].message.content
 
 
 # Example usage
-testimonials = [
+DUMMY_TESTIMONIALS = [
     "I experienced nausea and dizziness after starting Ozempic.",
     "It caused me to have frequent headaches.",
     "I felt really fatigued, especially in the first few weeks.",
@@ -44,5 +34,6 @@ testimonials = [
     "While I lost weight, I also experienced some stomach discomfort.",
 ]
 
-summary = summarise_test(testimonials)
-print(summary)
+if __name__ == '__main__':
+    summary = summarise_testimonials(DUMMY_TESTIMONIALS)
+    print(summary)
