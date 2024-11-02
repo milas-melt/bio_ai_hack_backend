@@ -1,6 +1,7 @@
 import json
 import enum
 import math
+from typing import Optional, Iterable
 
 with open("bio_ai_hack_backend/faers_ozempic_24Q3.json", "r") as file:
     _DATA = json.load(file)
@@ -11,9 +12,11 @@ class Sex(enum.StrEnum):
     FEMALE = "F"
 
 
-def select_on_age(age: int):
+def select_on_age(age: int, cases: Optional[Iterable] = None):
+    if cases is None:
+        cases = _DATA["cases"]
     matches = []
-    for case in _DATA["cases"]:
+    for case in cases:
         demographic_info = case["demographic_info"]
         got_age_in_units = demographic_info["age"]
         if isinstance(got_age_in_units, float):
@@ -46,19 +49,24 @@ def select_on_age(age: int):
     return matches
 
 
-def select_on_sex(sex: Sex):
+def select_on_sex(sex: str, cases: Optional[Iterable] = None):
+    sex = sex.upper()
+    if cases is None:
+        cases = _DATA["cases"]
     matches = []
-    for case in _DATA["cases"]:
+    for case in cases:
         demographic_info = case["demographic_info"]
         got_sex = demographic_info["sex"]
-        if got_sex == sex.value:
+        if got_sex == sex:
             matches.append(case)
     return matches
 
 
-def select_on_weight(weight: int):
+def select_on_weight(weight: int, cases: Optional[Iterable] = None):
+    if cases is None:
+        cases = _DATA["cases"]
     matches = []
-    for case in _DATA["cases"]:
+    for case in cases:
         demographic_info = case["demographic_info"]
         got_weight_in_units = demographic_info["wt"]
         weight_code = demographic_info["wt_cod"]

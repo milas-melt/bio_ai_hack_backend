@@ -3,6 +3,7 @@ from flask_cors import CORS
 import pymysql
 import pymysql.cursors
 import llm
+import faers_select
 
 app = Flask(__name__)
 CORS(app)
@@ -37,8 +38,14 @@ def test_endpoint():
 @app.route("/dashboard", methods=["GET"])
 def get_dashboard():
     age: str = request.args.get("age")
+    sex: str = request.args.get("sex")
     weight: str = request.args.get("weight")
     ethnicity: str = request.args.get("ethnicity")
+
+    age_related_cases = faers_select.select_on_age(int(age))
+    sex_related_cases = faers_select.select_on_sex(sex)
+    weight_related_cases = faers_select.select_on_weight(float(weight))
+
     testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
         {
@@ -50,16 +57,16 @@ def get_dashboard():
             "probabilities": {
                 "most_common": {
                     "age": {
-                        "vomiting": 0.5,
-                        "heart_attack": 0.5,
+                        "vomiting": len(age_related_cases),
+                        "heart_attack": len(age_related_cases),
+                    },
+                    "sex": {
+                        "vomiting": len(sex_related_cases),
+                        "heart_attack": len(sex_related_cases),
                     },
                     "weight": {
-                        "vomiting": 0.5,
-                        "heart_attack": 0.5,
-                    },
-                    "ethnicity": {
-                        "vomiting": 0.5,
-                        "heart_attack": 0.5,
+                        "vomiting": len(weight_related_cases),
+                        "heart_attack": len(weight_related_cases),
                     },
                 }
             },
