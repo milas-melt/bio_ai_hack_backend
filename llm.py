@@ -1,28 +1,23 @@
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama.llms import OllamaLLM
+import openai
 
-def summarise_test(summaries):
+def summarise_test(testimonials):
+    # Join the testimonials into a single string separated by commas
+    input_summaries = ", ".join(testimonials)
+    
     # Create the prompt template
-    template = """
-    Summarize the following testimonials: {testimonials} in bullet points.
-    """
+    prompt = f"Summarize the following testimonials in bullet points:\n\n{input_summaries}"
     
-    # Create a prompt from the template
-    prompt = ChatPromptTemplate.from_template(template)
+    # Invoke the GPT-4 model with the prompt
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant who summarizes information in bullet points."},
+            {"role": "user", "content": prompt}
+        ]
+    )
     
-    # Initialize the model
-    model = OllamaLLM(model="llama3.2")
-    
-    # Create the input string from summaries
-    input_summaries = ",".join(summaries)
-    
-    # Chain the prompt and model
-    chain = prompt | model
-    
-    # Invoke the model with the testimonials
-    out = chain.invoke({"testimonials": input_summaries})
-    
-    return out
+    # Extract and return the output
+    return response.choices[0].message['content']
 
 # Example usage
 testimonials = [
