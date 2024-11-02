@@ -42,14 +42,33 @@ def get_dashboard():
     weight: str = request.args.get("weight")
     ethnicity: str = request.args.get("ethnicity")
 
-    age_related_cases = faers_select.select_on_age(*faers_select.select_age_bucket(int(age)))
+    age_related_cases = faers_select.select_on_age(
+        *faers_select.select_age_bucket(int(age))
+    )
     sex_related_cases = faers_select.select_on_sex(sex)
-    weight_related_cases = faers_select.select_on_weight(*faers_select.select_weight_bucket(float(weight)))
+    weight_related_cases = faers_select.select_on_weight(
+        *faers_select.select_weight_bucket(float(weight))
+    )
+    joint_related_cases = faers_select.intersection(
+        age_related_cases, sex_related_cases, weight_related_cases
+    )
 
-    age_related_reactions = faers_select.top_k(faers_select.proportionalize(faers_select.extract_reactions(age_related_cases)))
-    sex_related_reactions = faers_select.top_k(faers_select.proportionalize(faers_select.extract_reactions(sex_related_cases)))
-    weight_related_reactions = faers_select.top_k(faers_select.proportionalize(faers_select.extract_reactions(weight_related_cases)))
-
+    age_related_reactions = faers_select.top_k(
+        faers_select.proportionalize(faers_select.extract_reactions(age_related_cases))
+    )
+    sex_related_reactions = faers_select.top_k(
+        faers_select.proportionalize(faers_select.extract_reactions(sex_related_cases))
+    )
+    weight_related_reactions = faers_select.top_k(
+        faers_select.proportionalize(
+            faers_select.extract_reactions(weight_related_cases)
+        )
+    )
+    joint_related_reactions = faers_select.top_k(
+        faers_select.proportionalize(
+            faers_select.extract_reactions(joint_related_cases)
+        )
+    )
     testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
         {
@@ -60,11 +79,12 @@ def get_dashboard():
                 "ethnicity": ethnicity,
             },
             "probabilities": {
-                "most_common": {
-                    "age": age_related_reactions,
-                    "sex": sex_related_reactions,
-                    "weight": weight_related_reactions,
-                }
+                "most_common": [
+                    ("age weight sex", joint_related_reactions),
+                    ("age", age_related_reactions),
+                    ("sex", sex_related_reactions),
+                    ("weight", weight_related_reactions),
+                ]
             },
             "testimony": testimony,
             "actionable_insights": ["a", "b", "c"],

@@ -112,6 +112,26 @@ def select_on_weight(
     return matches
 
 
+def intersection(*many_cases: Iterable[dict]) -> dict:
+    intersecting_primary_ids = None
+    for cases in many_cases:
+        primary_ids: set[str] = {
+            case["demographic_info"]["primaryid"] for case in cases
+        }
+        if intersecting_primary_ids is None:
+            intersecting_primary_ids = primary_ids
+        else:
+            intersecting_primary_ids.intersection_update(primary_ids)
+    if intersecting_primary_ids is None:
+        return {}
+    # else...
+    return [
+        case
+        for case in many_cases[0]
+        if case["demographic_info"]["primaryid"] in intersecting_primary_ids
+    ]
+
+
 def extract_reactions(cases: Iterable[dict]) -> dict[str, int]:
     reactions: dict[str, int] = {}
     for case in cases:
