@@ -42,9 +42,9 @@ def get_dashboard():
     weight: str = request.args.get("weight")
     ethnicity: str = request.args.get("ethnicity")
 
-    age_related_cases = faers_select.select_on_age(int(age))
+    age_related_cases = faers_select.select_on_age(*faers_select.select_age_bucket(int(age)))
     sex_related_cases = faers_select.select_on_sex(sex)
-    weight_related_cases = faers_select.select_on_weight(float(weight))
+    weight_related_cases = faers_select.select_on_weight(*faers_select.select_weight_bucket(float(weight)))
 
     testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
@@ -52,6 +52,7 @@ def get_dashboard():
             "patient_info": {
                 "age": age,
                 "weight": weight,
+                "sex": sex,
                 "ethnicity": ethnicity,
             },
             "probabilities": {

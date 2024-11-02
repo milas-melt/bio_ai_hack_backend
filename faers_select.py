@@ -12,7 +12,27 @@ class Sex(enum.StrEnum):
     FEMALE = "F"
 
 
-def select_on_age(age: int, cases: Optional[Iterable] = None):
+def select_age_bucket(age: int) -> tuple[int, int]:
+    increment = 10
+    for start_age in range(0, 500, 10):
+        end_age = start_age + increment
+        if start_age <= age < end_age:
+            return (start_age, end_age)
+    raise RuntimeError("what")
+
+
+def select_weight_bucket(weight: float) -> tuple[float, float]:
+    increment = 10
+    for start_weight in range(0, 1000, 10):
+        end_weight = start_weight + increment
+        if start_weight <= weight < end_weight:
+            return (start_weight, end_weight)
+    raise RuntimeError("what")
+
+
+def select_on_age(
+    min_age: int, max_age_exclusive: int, cases: Optional[Iterable] = None
+):
     if cases is None:
         cases = _DATA["cases"]
     matches = []
@@ -44,7 +64,7 @@ def select_on_age(age: int, cases: Optional[Iterable] = None):
             got_age = got_age_in_units / 24
         else:
             raise NotImplementedError("!!!")
-        if got_age == age:
+        if min_age <= got_age < max_age_exclusive:
             matches.append(case)
     return matches
 
@@ -62,7 +82,9 @@ def select_on_sex(sex: str, cases: Optional[Iterable] = None):
     return matches
 
 
-def select_on_weight(weight: int, cases: Optional[Iterable] = None):
+def select_on_weight(
+    min_weight: float, max_weight_exclusive: float, cases: Optional[Iterable] = None
+):
     if cases is None:
         cases = _DATA["cases"]
     matches = []
@@ -82,7 +104,7 @@ def select_on_weight(weight: int, cases: Optional[Iterable] = None):
             got_weight_in_kg = float(got_weight_in_units) * 100.0
         else:
             raise ValueError("Unknown bro")
-        if weight == int(got_weight_in_kg):
+        if min_weight <= int(got_weight_in_kg) < max_weight_exclusive:
             matches.append(case)
     return matches
 
