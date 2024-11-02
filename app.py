@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pymysql
-
+import pymysql.cursors
 
 app = Flask(__name__)
 CORS(app)
@@ -71,7 +71,7 @@ def get_dashboard():
 @app.route("/api/items", methods=["GET"])
 def get_items():
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute("SELECT * FROM items")
     items = cursor.fetchall()
     cursor.close()
@@ -105,7 +105,7 @@ def add_item():
 def update_item(item_id):
     updated_name = request.json.get("name")
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     # Check if item exists
     cursor.execute("SELECT * FROM items WHERE id = %s", (item_id,))
     item = cursor.fetchone()
