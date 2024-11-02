@@ -46,6 +46,10 @@ def get_dashboard():
     sex_related_cases = faers_select.select_on_sex(sex)
     weight_related_cases = faers_select.select_on_weight(*faers_select.select_weight_bucket(float(weight)))
 
+    age_related_reactions = faers_select.top_k(faers_select.proportionalize(faers_select.extract_reactions(age_related_cases)))
+    sex_related_reactions = faers_select.top_k(faers_select.proportionalize(faers_select.extract_reactions(sex_related_cases)))
+    weight_related_reactions = faers_select.top_k(faers_select.proportionalize(faers_select.extract_reactions(weight_related_cases)))
+
     testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
         {
@@ -57,18 +61,9 @@ def get_dashboard():
             },
             "probabilities": {
                 "most_common": {
-                    "age": {
-                        "vomiting": len(age_related_cases),
-                        "heart_attack": len(age_related_cases),
-                    },
-                    "sex": {
-                        "vomiting": len(sex_related_cases),
-                        "heart_attack": len(sex_related_cases),
-                    },
-                    "weight": {
-                        "vomiting": len(weight_related_cases),
-                        "heart_attack": len(weight_related_cases),
-                    },
+                    "age": age_related_reactions,
+                    "sex": sex_related_reactions,
+                    "weight": weight_related_reactions,
                 }
             },
             "testimony": testimony,

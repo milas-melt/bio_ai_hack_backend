@@ -1,7 +1,10 @@
+import operator
 import json
 import enum
 import math
 from typing import Optional, Iterable
+import config
+
 
 with open("bio_ai_hack_backend/faers_ozempic_24Q3.json", "r") as file:
     _DATA = json.load(file)
@@ -109,7 +112,34 @@ def select_on_weight(
     return matches
 
 
+def extract_reactions(cases: Iterable[dict]) -> dict[str, int]:
+    reactions: dict[str, int] = {}
+    for case in cases:
+        for reaction in case["reactions"]:
+            reaction_description = reaction["pt"]
+            if reaction_description in reactions:
+                reactions[reaction_description] += 1
+            else:
+                reactions[reaction_description] = 1
+    return reactions
+
+
+def proportionalize(counter: dict[str, float]) -> dict[str, float]:
+    denominator = sum(counter.values())
+    return {key: value / denominator for key, value in counter.items()}
+
+
+def top_k(
+    counter: dict[str, float], k: Optional[int] = None
+) -> list[tuple[str, float]]:
+    if k is None:
+        k = config.N_REACTIONS
+    sorted_items = sorted(counter.items(), reverse=True, key=operator.itemgetter(1))
+    top_items = sorted_items[:k]
+    return top_items
+
+
 if __name__ == "__main__":
-    select_on_age(83)
+    select_on_age(60, 70)
     select_on_sex(Sex.MALE)
     select_on_weight(10)
