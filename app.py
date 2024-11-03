@@ -2,8 +2,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pymysql
 import pymysql.cursors
-import llm
+import pubmed_rag as pubmed_rag
 import faers_select
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -37,10 +38,35 @@ def test_endpoint():
 
 @app.route("/dashboard", methods=["GET"])
 def get_dashboard():
+
     age: str = request.args.get("age")
     sex: str = request.args.get("sex")
     weight: str = request.args.get("weight")
     ethnicity: str = request.args.get("ethnicity")
+
+
+    drug_name = "ozempic"
+
+    # Example patient data
+    patient = pubmed_rag.PatientData(
+        age=float(age),
+        gender=sex,
+        weight=float(weight),
+        existing_conditions=["hypertension", "type 2 diabetes"],
+        medications=["metformin", "lisinopril"]
+    )
+
+    with open('./bio_ai_hack_backend/faers_ozempic_24Q3.json', 'r') as f:
+            fda_data = json.load(f)['cases']
+
+    pipeline = pubmed_rag.PubMedRAGPipeline()
+    
+    insights = pipeline.generate_medical_insights(
+        patient_data=patient,
+        drug_name=drug_name,
+        fda_data=fda_data,
+    )
+
 
     age_related_cases = faers_select.select_on_age(
         *faers_select.select_age_bucket(int(age))
@@ -49,6 +75,7 @@ def get_dashboard():
     weight_related_cases = faers_select.select_on_weight(
         *faers_select.select_weight_bucket(float(weight))
     )
+    medication_related_cases = faers_select.select_on_medications(patient.medications, drug_name)
     joint_related_cases = faers_select.intersection(
         age_related_cases, sex_related_cases, weight_related_cases
     )
@@ -64,12 +91,17 @@ def get_dashboard():
             faers_select.extract_primary_key_reactions(weight_related_cases)
         )
     )
+    medication_related_reactions =  faers_select.top_k(
+        faers_select.proportionalize(
+            faers_select.extract_primary_key_reactions(medication_related_cases)
+        )
+    )
     joint_related_reactions = faers_select.top_k(
         faers_select.proportionalize(
             faers_select.extract_primary_key_reactions(joint_related_cases)
         )
     )
-    testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
+    # testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
         {
             "patient_info": {
@@ -84,10 +116,12 @@ def get_dashboard():
                     ("age", age_related_reactions),
                     ("sex", sex_related_reactions),
                     ("weight", weight_related_reactions),
+                    ("medications", medication_related_reactions),
                 ]
             },
-            "testimony": testimony,
-            "actionable_insights": ["a", "b", "c"],
+            # "testimony": testimony,
+            "summary": insights['summary'],
+            "actionable_insights": insights['insights'],
         }
     )
 
