@@ -78,6 +78,23 @@ def select_on_sex(sex: str, cases: Optional[Iterable] = None):
             matches.append(case)
     return matches
 
+def select_on_medications(medications, target): 
+    cases = _DATA["cases"]
+    matches = []
+    for case in cases:
+        for drug in case['drugs']: 
+            name = drug['drugname'].lower()
+            role = drug['role_cod']
+
+            if medications == []:
+                if name == target and role=='PS':
+                    matches.append(case)
+            else:
+                if name in medications or name == target:
+                    if role in ['PS', 'SS', 'I']:
+                        matches.append(case)
+    return matches
+
 
 def select_on_weight(
     min_weight: float, max_weight_exclusive: float, cases: Optional[Iterable] = None
