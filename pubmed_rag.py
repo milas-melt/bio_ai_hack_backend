@@ -11,6 +11,8 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
 import json
+import time
+
 
 # Configure logging
 logging.basicConfig(
@@ -31,9 +33,45 @@ class PatientData:
     existing_conditions: List[str]
     medications: List[str]
 
+class ProgressTracker:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ProgressTracker, cls).__new__(cls)
+            cls._instance._progress = 0
+            cls._instance._status = "Starting analysis..."
+            cls._instance._details = ""
+            cls._instance._is_complete = False
+        return cls._instance
+    
+    def update(self, progress: int, status: str, details: str = ""):
+        self._progress = progress
+        self._status = status
+        self._details = details
+    
+    def reset(self):
+        self._progress = 0
+        self._is_complete = False
+        self._status = "Starting analysis..."
+        
+    def complete(self):
+        self._is_complete = True
+        self._progress = 100
+        
+    @property
+    def current_state(self):
+        return {
+            "progress": self._progress,
+            "status": self._status,
+            "details": self._details,
+            "isComplete": self._is_complete
+        }
+
+
 
 class PubMedRAGPipeline:
-    def __init__(self):
+    def __init__(self, tracker):
         """
         Initialize the RAG pipeline.
         
@@ -47,6 +85,7 @@ class PubMedRAGPipeline:
         Entrez.email = 'lol@gamil.com'
         logger.info("Initialized PubMedRAGPipeline")
         self.cache_file = Path("embedding_cache.json")
+        self.progress_tracker = tracker
 
         # Initialize embedding cache
         self.embedding_cache = self._load_cache()
@@ -183,11 +222,13 @@ class PubMedRAGPipeline:
         fda_data: pd.DataFrame,
     ) -> Dict[str, Any]:
         """
-        Generate medical insights combining FDA data and PubMed knowledge.
+        Async version of generate_medical_insights with progress tracking
         """
         logger.info(f"Generating medical insights for {drug_name}")
-
-            # Create knowledge base for a drug
+        self.progress_tracker.update(15, "Creating medical knowledge base")
+        time.sleep(2) 
+        
+        # Create knowledge base for a drug
         knowledge_base = self.create_knowledge_base(drug_name)
         
         # Create context about the patient
@@ -199,29 +240,27 @@ class PubMedRAGPipeline:
         - Existing Conditions: {', '.join(patient_data.existing_conditions)}
         - Current Medications: {', '.join(patient_data.medications)}
         """
-        
         # Get relevant FDA adverse events
-        logger.info("Filtering similar FDA cases")
+        self.progress_tracker.update(40, "Building similarity graph", "Filtering for cases similar to you")
+        time.sleep(2) 
         similar_cases = self._filter_similar_cases(fda_data, patient_data)
         fda_summary = self._summarize_fda_data(patient_data, drug_name, similar_cases)
+       
 
+        # Calculate age group
         months = patient_data.age * 12
         AGE_GROUPS = {
-            range(0, 1): "Neonate",      # 0-1 month
-            range(1, 24): "Infant",      # 1-23 months
-            range(24, 144): "Child",     # 2-11 years (in months)
-            range(144, 216): "Adolescent", # 12-17 years (in months)
-            range(216, 780): "Adult",    # 18-64 years (in months)
-            range(780, 1500): "Elderly"  # 65+ years (in months)
+            range(0, 1): "Neonate",
+            range(1, 24): "Infant",
+            range(24, 144): "Child",
+            range(144, 216): "Adolescent",
+            range(216, 780): "Adult",
+            range(780, 1500): "Elderly"
         }
-        age_grp = ""
-        for age_range, group in AGE_GROUPS.items():
-            if months in age_range:
-                age_grp = group
+        age_grp = next((group for age_range, group in AGE_GROUPS.items() 
+                       if months in age_range), "Adult")
 
-
-   # Get relevant PubMed contexts
-        logger.info("Retrieving relevant PubMed contexts")
+        # Generate PubMed queries
         # Create focused sub-queries for different clinical aspects
         queries = [
             # Core safety and efficacy
@@ -257,7 +296,13 @@ class PubMedRAGPipeline:
             f"{drug_name} pharmacokinetics absorption metabolism {patient_data.weight} KG {age_grp}"
         ]
         
-        # Combine relevant contexts from all queries
+        # Process PubMed queries with progress updates
+        all_relevant_contexts = []
+        total_queries = len(queries)
+
+        self.progress_tracker.update(60, "Querying knowledge base", "Retrieving and analysing clincial trials")
+        time.sleep(2) 
+        
         all_relevant_contexts = []
         for query in queries:
             contexts = self.get_relevant_contexts(query, knowledge_base, n_results=2)
@@ -267,7 +312,9 @@ class PubMedRAGPipeline:
         relevant_studies = list(dict.fromkeys(all_relevant_contexts))
         relevant_studies = self.get_relevant_contexts(query, knowledge_base)    
         
-        # Combine all contexts
+        # Combine contexts and generate insights
+        self.progress_tracker.update(80, "Summarising findings and computing statistics")
+        time.sleep(2) 
         full_context = f"""
         {patient_context}
         
@@ -276,26 +323,20 @@ class PubMedRAGPipeline:
         """
         
         # Generate insights using GPT-4
-        logger.info("Generating insights using GPT-4")
+        self.progress_tracker.update(90, "Summarising findings and computing statistics")
+        time.sleep(2) 
         response = self.openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": """
-                You are a medical research assistant. Generate evidence-based insights about drug safety and recommendations.
-                Focus on:
-                1. Dosage guidance based on patient characteristics
-                2. Potential interactions with existing conditions and medications
-                3. Specific monitoring recommendations
-                                 
-                Present information factually, use precise numbers, and include appropriate medical disclaimers. Be concise and avoid generalities. Present it as a list of bullet points. 
-                """},
+                {"role": "system", "content": """..."""},
                 {"role": "user", "content": full_context}
             ],
             temperature=0.2
         )
         
-        logger.info("Successfully generated medical insights")
-
+        # Prepare final output
+        self.progress_tracker.update(95, "Preparing final report")
+        time.sleep(2)
         output = {
             "insights": response.choices[0].message.content,
             "summary": fda_summary,
@@ -304,13 +345,17 @@ class PubMedRAGPipeline:
                 "fda_cases": len(similar_cases)
             }
         }
+        
+        self.progress_tracker.complete()
+        logger.info("Successfully generated medical insights")
 
 
         # output_filename = f"medical_insights_{drug_name.replace(' ', '_')}_{patient_data.age}_{patient_data.gender}.json"
         # with open(output_filename, 'w', encoding='utf-8') as f:
         #     json.dump(output, f, indent=4, ensure_ascii=False)
-
         return output
+
+
 
 
     def _filter_similar_cases(self, fda_data: List[Dict], patient_data: PatientData) -> List[Dict]:
