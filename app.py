@@ -61,6 +61,8 @@ def get_dashboard():
     age = data.get("age")
     sex = data.get("sex")
     weight = data.get("weight")
+    conditions = data.get("conditions")
+    medications = data.get('medications')
     drug_name = "ozempic"
 
     # Reset progress tracker for new request
@@ -73,8 +75,8 @@ def get_dashboard():
         age=float(age),
         gender=sex,
         weight=float(weight),
-        existing_conditions=["hypertension", "type 2 diabetes"],
-        medications=["metformin", "lisinopril"]
+        existing_conditions=conditions,
+        medications=medications
     )
 
     tracker.update(10, "Loading and parsing FDA data")
@@ -133,6 +135,8 @@ def get_dashboard():
                 "age": age,
                 "weight": weight,
                 "sex": sex,
+                "conditions": conditions,
+                "medications": medications,
             },
             "probabilities": {
                 "most_common": [
