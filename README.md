@@ -1,4 +1,4 @@
-#Instructions to start this repo
+# Instructions to get started
 
 ```bash
 mkdir bio_ai_hack
