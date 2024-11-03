@@ -1,3 +1,4 @@
+from typing import Any
 import operator
 import json
 import math
@@ -7,6 +8,69 @@ import config
 
 with open("bio_ai_hack_backend/faers_ozempic_24Q3.json", "r") as file:
     _DATA = json.load(file)
+
+_OUTC_COD_2_TEXT = {
+    "DE": "Death",
+    "LT": "Life-Threatening",
+    "HO": "Hospitalization - Initial or Prolonged",
+    "DS": "Disability",
+    "CA": "Congential Anomaly",
+    "RI": "Required Intervention to Prevent Permanent Impairment/Damage",
+    "OT": "Other Serious (Important Medical Event)"
+}
+
+def select_overview(
+    age: int,
+    sex: str,
+    weight: float,
+    medications,
+    drug_name,
+):
+    age_related_cases = select_on_age(*select_age_bucket(int(age)))
+    sex_related_cases = select_on_sex(sex)
+    weight_related_cases = select_on_weight(*select_weight_bucket(float(weight)))
+    medication_related_cases = select_on_medications(medications, drug_name)
+    joint_related_cases = intersection(
+        age_related_cases, sex_related_cases, weight_related_cases
+    )
+
+    k_common_age_related_reactions = top_k(
+        proportionalize(extract_primary_key_reactions(age_related_cases))
+    )
+    k_common_sex_related_reactions = top_k(
+        proportionalize(extract_primary_key_reactions(sex_related_cases))
+    )
+    k_common_weight_related_reactions = top_k(
+        proportionalize(extract_primary_key_reactions(weight_related_cases))
+    )
+    k_common_medication_related_reactions = top_k(
+        proportionalize(extract_primary_key_reactions(medication_related_cases))
+    )
+    k_common_joint_related_reactions = top_k(
+        proportionalize(extract_primary_key_reactions(joint_related_cases))
+    )
+
+    k_severe_age_related_reactions = map_outcome_code(order_by_severe(normal_proportionalize({severity: len(cases) for severity, cases in group_by_outcome(age_related_cases).items()})))
+    k_severe_sex_related_reactions = map_outcome_code(order_by_severe(normal_proportionalize({severity: len(cases) for severity, cases in group_by_outcome(sex_related_cases).items()})))
+    k_severe_weight_related_reactions = map_outcome_code(order_by_severe(normal_proportionalize({severity: len(cases) for severity, cases in group_by_outcome(weight_related_cases).items()})))
+    k_severe_medication_related_reactions = map_outcome_code(order_by_severe(normal_proportionalize({severity: len(cases) for severity, cases in group_by_outcome(medication_related_cases).items()})))
+    k_severe_joint_related_reactions = map_outcome_code(order_by_severe(normal_proportionalize({severity: len(cases) for severity, cases in group_by_outcome(joint_related_cases).items()})))
+    return {
+        "most_common": [
+            ("age weight sex", k_common_joint_related_reactions),
+            ("age", k_common_age_related_reactions),
+            ("sex", k_common_sex_related_reactions),
+            ("weight", k_common_weight_related_reactions),
+            ("medications", k_common_medication_related_reactions),
+        ],
+        "most_severe": [
+            ("age weight sex", k_severe_joint_related_reactions),
+            ("age", k_severe_age_related_reactions),
+            ("sex", k_severe_sex_related_reactions),
+            ("weight", k_severe_weight_related_reactions),
+            ("medications", k_severe_medication_related_reactions),
+        ]
+    }
 
 
 def select_age_bucket(age: int) -> tuple[int, int]:
@@ -78,20 +142,21 @@ def select_on_sex(sex: str, cases: Optional[Iterable] = None):
             matches.append(case)
     return matches
 
-def select_on_medications(medications, target): 
+
+def select_on_medications(medications, target):
     cases = _DATA["cases"]
     matches = []
     for case in cases:
-        for drug in case['drugs']: 
-            name = drug['drugname'].lower()
-            role = drug['role_cod']
+        for drug in case["drugs"]:
+            name = drug["drugname"].lower()
+            role = drug["role_cod"]
 
             if medications == []:
-                if name == target and role=='PS':
+                if name == target and role == "PS":
                     matches.append(case)
             else:
                 if name in medications or name == target:
-                    if role in ['PS', 'SS', 'I']:
+                    if role in ["PS", "SS", "I"]:
                         matches.append(case)
     return matches
 
@@ -121,6 +186,22 @@ def select_on_weight(
         if min_weight <= int(got_weight_in_kg) < max_weight_exclusive:
             matches.append(case)
     return matches
+
+
+def group_by_outcome(cases: Optional[Iterable] = None) -> dict[str, list]:
+    # Note that maybe duplicate IDs!
+    if cases is None:
+        cases = _DATA["cases"]
+    cases_grouped_by_outcome = {}
+    for case in cases:
+        outcomes = case["outcomes"]
+        for outcome in outcomes:
+            outcome_code = outcome["outc_cod"]
+            if outcome_code in cases_grouped_by_outcome:
+                cases_grouped_by_outcome[outcome_code].append(case)
+            else:
+                cases_grouped_by_outcome[outcome_code] = [case]
+    return cases_grouped_by_outcome
 
 
 def intersection(*many_cases: Iterable[dict]) -> dict:
@@ -168,6 +249,11 @@ def proportionalize(primary_key_reactions: dict[str, set[str]]) -> dict[str, flo
     return {key: value / denominator for key, value in counter.items()}
 
 
+def normal_proportionalize(items: dict[str, float]) -> dict[str, float]:
+    denominator = sum(items.values())
+    return {key: value / denominator for key, value in items.items()}
+
+
 def top_k(
     counter: dict[str, float], k: Optional[int] = None
 ) -> list[tuple[str, float]]:
@@ -177,7 +263,29 @@ def top_k(
     top_items = sorted_items[:k]
     return top_items
 
+def order_by_severe(
+    counter: dict[str, float]
+) -> list[tuple[str, float]]:
+    ordering = list(_OUTC_COD_2_TEXT)
+    sorted_items = sorted(counter.items(), key=lambda key: ordering.index(key[0]))
+    return sorted_items
+
+
+def map_outcome_code(items: list[tuple[str, Any]]) -> list[tuple[str, Any]]:
+    return [
+        (_OUTC_COD_2_TEXT[key], value)
+        for key, value in items
+    ]
+
 
 if __name__ == "__main__":
 
-    extract_primary_key_reactions(_DATA["cases"])
+    # extract_primary_key_reactions(_DATA["cases"])
+
+    overview = select_overview(
+        age=30,
+        sex='F',
+        weight=70,
+        medications=["metformin", "lisinopril"],
+        drug_name="ozempic",
+    )

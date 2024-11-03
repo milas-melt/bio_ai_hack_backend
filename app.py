@@ -65,8 +65,7 @@ def get_dashboard():
 
     # Reset progress tracker for new request
     tracker = pubmed_rag.ProgressTracker()
-    tracker.reset() 
-
+    tracker.reset()
 
     # Example patient data
     patient = pubmed_rag.PatientData(
@@ -83,7 +82,6 @@ def get_dashboard():
     with open('./bio_ai_hack_backend/faers_ozempic_24Q3.json', 'r') as f:
             fda_data = json.load(f)['cases']
     
-
     pipeline = pubmed_rag.PubMedRAGPipeline(tracker)
     
     insights = pipeline.generate_medical_insights(
@@ -92,40 +90,15 @@ def get_dashboard():
         fda_data=fda_data,
     )
 
-
-    age_related_cases = faers_select.select_on_age(
-        *faers_select.select_age_bucket(int(age))
-    )
-    sex_related_cases = faers_select.select_on_sex(sex)
-    weight_related_cases = faers_select.select_on_weight(
-        *faers_select.select_weight_bucket(float(weight))
-    )
-    medication_related_cases = faers_select.select_on_medications(patient.medications, drug_name)
-    joint_related_cases = faers_select.intersection(
-        age_related_cases, sex_related_cases, weight_related_cases
+    overview = faers_select.select_overview(
+        age=age,
+        sex=sex,
+        weight=weight,
+        medications=patient.medications,
+        drug_name=drug_name,
     )
 
-    age_related_reactions = faers_select.top_k(
-        faers_select.proportionalize(faers_select.extract_primary_key_reactions(age_related_cases))
-    )
-    sex_related_reactions = faers_select.top_k(
-        faers_select.proportionalize(faers_select.extract_primary_key_reactions(sex_related_cases))
-    )
-    weight_related_reactions = faers_select.top_k(
-        faers_select.proportionalize(
-            faers_select.extract_primary_key_reactions(weight_related_cases)
-        )
-    )
-    medication_related_reactions =  faers_select.top_k(
-        faers_select.proportionalize(
-            faers_select.extract_primary_key_reactions(medication_related_cases)
-        )
-    )
-    joint_related_reactions = faers_select.top_k(
-        faers_select.proportionalize(
-            faers_select.extract_primary_key_reactions(joint_related_cases)
-        )
-    )
+    
     # testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
     return jsonify(
         {
@@ -134,15 +107,7 @@ def get_dashboard():
                 "weight": weight,
                 "sex": sex,
             },
-            "probabilities": {
-                "most_common": [
-                    ("age weight sex", joint_related_reactions),
-                    ("age", age_related_reactions),
-                    ("sex", sex_related_reactions),
-                    ("weight", weight_related_reactions),
-                    ("medications", medication_related_reactions),
-                ]
-            },
+            "probabilities": overview,
             "summary": insights['summary'],
             "actionable_insights": insights['insights'],
         }
