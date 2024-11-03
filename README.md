@@ -8,6 +8,7 @@ cd bio_ai_hack
 Then you git clone the backend repo
 
 ```bash
+cd bio_ai_hack_backend
 pip install -r requirements.txt
 cd ..
 python bio_ai_hack_backend/app.py
