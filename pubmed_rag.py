@@ -327,18 +327,28 @@ class PubMedRAGPipeline:
         time.sleep(2) 
         response = self.openai_client.chat.completions.create(
             model="gpt-4o-mini",
+            response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": """..."""},
+                {"role": "system", "content": """
+                You are a medical research assistant. Generate evidence-based insights about drug safety and recommendations.
+                Focus on:
+                1. Dosage considerations based on patient characteristics
+                2. Potential interactions with existing conditions and medications
+                3. Specific monitoring recommendations
+                
+                Present information factually and include appropriate medical disclaimers. Please be brief but you specific insights and numbers from the clincial trial studies. Return it as json formatted as such:
+                 {dosage: '', interactions: '', monitoring: ''}
+                """},
                 {"role": "user", "content": full_context}
             ],
             temperature=0.2
         )
-        
+        print(response)
         # Prepare final output
         self.progress_tracker.update(95, "Preparing final report")
         time.sleep(2)
         output = {
-            "insights": response.choices[0].message.content,
+            "insights": json.loads(response.choices[0].message.content),
             "summary": fda_summary,
             "sources": {
                 "pubmed_papers": [kb["metadata"] for kb in knowledge_base],
@@ -349,10 +359,6 @@ class PubMedRAGPipeline:
         self.progress_tracker.complete()
         logger.info("Successfully generated medical insights")
 
-
-        # output_filename = f"medical_insights_{drug_name.replace(' ', '_')}_{patient_data.age}_{patient_data.gender}.json"
-        # with open(output_filename, 'w', encoding='utf-8') as f:
-        #     json.dump(output, f, indent=4, ensure_ascii=False)
         return output
 
 
