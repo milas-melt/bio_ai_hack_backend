@@ -1,6 +1,5 @@
 import operator
 import json
-import enum
 import math
 from typing import Optional, Iterable
 import config
@@ -8,11 +7,6 @@ import config
 
 with open("bio_ai_hack_backend/faers_ozempic_24Q3.json", "r") as file:
     _DATA = json.load(file)
-
-
-class Sex(enum.StrEnum):
-    MALE = "M"
-    FEMALE = "F"
 
 
 def select_age_bucket(age: int) -> tuple[int, int]:
@@ -132,20 +126,28 @@ def intersection(*many_cases: Iterable[dict]) -> dict:
     ]
 
 
-def extract_reactions(cases: Iterable[dict]) -> dict[str, int]:
-    reactions: dict[str, int] = {}
+def extract_primary_key_reactions(cases: Iterable[dict]) -> dict[str, set[str]]:
+    primary_id_reactions: dict[str, set[str]] = {}
     for case in cases:
+        primary_id = case["demographic_info"]["primaryid"]
         for reaction in case["reactions"]:
             reaction_description = reaction["pt"]
-            if reaction_description in reactions:
-                reactions[reaction_description] += 1
+            if primary_id in primary_id_reactions:
+                primary_id_reactions[primary_id].add(reaction_description)
             else:
-                reactions[reaction_description] = 1
-    return reactions
+                primary_id_reactions[primary_id] = {reaction_description}
+    return primary_id_reactions
 
 
-def proportionalize(counter: dict[str, float]) -> dict[str, float]:
-    denominator = sum(counter.values())
+def proportionalize(primary_key_reactions: dict[str, set[str]]) -> dict[str, float]:
+    denominator = len(primary_key_reactions)
+    counter: dict[str, int] = {}
+    for _, reactions in primary_key_reactions.items():
+        for reaction in reactions:
+            if reaction in counter:
+                counter[reaction] += 1
+            else:
+                counter[reaction] = 1
     return {key: value / denominator for key, value in counter.items()}
 
 
@@ -160,6 +162,5 @@ def top_k(
 
 
 if __name__ == "__main__":
-    select_on_age(60, 70)
-    select_on_sex(Sex.MALE)
-    select_on_weight(10)
+
+    extract_primary_key_reactions(_DATA["cases"])

@@ -54,19 +54,19 @@ def get_dashboard():
     )
 
     age_related_reactions = faers_select.top_k(
-        faers_select.proportionalize(faers_select.extract_reactions(age_related_cases))
+        faers_select.proportionalize(faers_select.extract_primary_key_reactions(age_related_cases))
     )
     sex_related_reactions = faers_select.top_k(
-        faers_select.proportionalize(faers_select.extract_reactions(sex_related_cases))
+        faers_select.proportionalize(faers_select.extract_primary_key_reactions(sex_related_cases))
     )
     weight_related_reactions = faers_select.top_k(
         faers_select.proportionalize(
-            faers_select.extract_reactions(weight_related_cases)
+            faers_select.extract_primary_key_reactions(weight_related_cases)
         )
     )
     joint_related_reactions = faers_select.top_k(
         faers_select.proportionalize(
-            faers_select.extract_reactions(joint_related_cases)
+            faers_select.extract_primary_key_reactions(joint_related_cases)
         )
     )
     testimony = llm.summarise_testimonials(llm.DUMMY_TESTIMONIALS)
