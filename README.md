@@ -14,6 +14,8 @@ cd ..
 python bio_ai_hack_backend/app.py
 ```
 
+Rename .env_example to .env and put your OpenAI API key in it.
+
 Then you can test the server:
 
 ```bash
