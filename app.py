@@ -5,6 +5,8 @@ import pymysql.cursors
 import pubmed_rag as pubmed_rag
 import faers_select
 import json
+from flask import Response, stream_with_context
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -35,17 +37,36 @@ def test_endpoint():
 
 # ============== Main Endpoints ============
 
+@app.route("/dashboard/progress")
+def get_progress():
+    def generate():
+        tracker = pubmed_rag.ProgressTracker()
+        tracker.reset()  # Reset at the start of progress tracking
+        
+        while not tracker._is_complete:
+            data = tracker.current_state
+            yield f"data: {json.dumps(data)}\n\n"
+            time.sleep(0.5)  # Poll every 500ms
+        # Send final update
+        yield f"data: {json.dumps(tracker.current_state)}\n\n"
+    
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream'
+    )
 
-@app.route("/dashboard", methods=["GET"])
+@app.route("/dashboard", methods=["POST"])
 def get_dashboard():
-
-    age: str = request.args.get("age")
-    sex: str = request.args.get("sex")
-    weight: str = request.args.get("weight")
-    ethnicity: str = request.args.get("ethnicity")
-
-
+    data = request.get_json()
+    age = data.get("age")
+    sex = data.get("sex")
+    weight = data.get("weight")
     drug_name = "ozempic"
+
+    # Reset progress tracker for new request
+    tracker = pubmed_rag.ProgressTracker()
+    tracker.reset() 
+
 
     # Example patient data
     patient = pubmed_rag.PatientData(
@@ -56,10 +77,14 @@ def get_dashboard():
         medications=["metformin", "lisinopril"]
     )
 
+    tracker.update(10, "Loading and parsing FDA data")
+    time.sleep(2)
+
     with open('./bio_ai_hack_backend/faers_ozempic_24Q3.json', 'r') as f:
             fda_data = json.load(f)['cases']
+    
 
-    pipeline = pubmed_rag.PubMedRAGPipeline()
+    pipeline = pubmed_rag.PubMedRAGPipeline(tracker)
     
     insights = pipeline.generate_medical_insights(
         patient_data=patient,
@@ -108,7 +133,6 @@ def get_dashboard():
                 "age": age,
                 "weight": weight,
                 "sex": sex,
-                "ethnicity": ethnicity,
             },
             "probabilities": {
                 "most_common": [
@@ -119,7 +143,6 @@ def get_dashboard():
                     ("medications", medication_related_reactions),
                 ]
             },
-            # "testimony": testimony,
             "summary": insights['summary'],
             "actionable_insights": insights['insights'],
         }
