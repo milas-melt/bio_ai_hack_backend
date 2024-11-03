@@ -1,4 +1,9 @@
 import openai
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 def summarise_testimonials(testimonials: list[str]) -> str:
@@ -34,6 +39,6 @@ DUMMY_TESTIMONIALS = [
     "While I lost weight, I also experienced some stomach discomfort.",
 ]
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     summary = summarise_testimonials(DUMMY_TESTIMONIALS)
     print(summary)
